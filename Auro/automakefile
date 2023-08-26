@@ -1,0 +1,119 @@
+##
+## EPITECH PROJECT, 2023
+## B-SYN-200-LYN-2-1-automakefile-elias.abassi
+## File description:
+## automakefile
+##
+
+#!/bin/bash
+
+config_file="$1"
+makefile_name="Makefile"
+
+if [ -z "$config_file" ]; then
+    echo "Error: Configuration file not provided."
+    exit 84
+fi
+
+if [ ! -f "$config_file" ]; then
+    echo "Error: Configuration file '$config_file' not found."
+    exit 84
+fi
+
+read_config_file() {
+    while IFS=';' read -r key value; do
+        case "$key" in
+            PROJECT_DIR) project_dir="$value" ;;
+            SOURCES_DIR) sources_dir="$value" ;;
+            HEADERS_DIR) headers_dir="$value" ;;
+            LIBS_DIR) libs_dir="$value" ;;
+            BCK_DIR) backup_dir="$value" ;;
+            EXEC) executable="$value" ;;
+            CC) compiler="$value" ;;
+            CFLAGS) cflags="$value" ;;
+            LDFLAGS) ldflags="$value" ;;
+            ZIP) zip_binary="$value" ;;
+            ZIPFLAGS) zip_flags="$value" ;;
+            UNZIP) unzip_binary="$value" ;;
+            UNZIPFLAGS) unzip_flags="$value" ;;
+        esac
+    done < "$config_file"
+}
+
+check_mandatory_fields() {
+    if [ -z "$project_dir" ]; then
+        echo "Error: 'PROJECT_DIR' is a mandatory field in the configuration file."
+        exit 84
+    fi
+}
+
+generate_makefile() {
+    cat > "${project_dir}/$makefile_name" <<EOF
+PROJECT_DIR := $project_dir
+SOURCES_DIR := $sources_dir
+HEADERS_DIR := $headers_dir
+LIBS_DIR := $libs_dir
+BCK_DIR := $backup_dir
+
+CC := $compiler
+CFLAGS := $cflags
+LDFLAGS := $ldflags
+ZIP := $zip_binary
+ZIPFLAGS := $zip_flags
+UNZIP := $unzip_binary
+UNZIPFLAGS := $unzip_flags
+
+SRC := \$(shell find . -type f -name "*.c")
+OBJECTS := \$(SRC:.c=.o)
+
+EXEC := $executable
+
+ARCHIVE := \$(BCK_DIR)/backup.zip
+
+all: \$(EXEC)
+
+\$(EXEC): \$(OBJECTS)
+	@echo "Linking \$@"
+	@\$(CC) \$(LDFLAGS) -o \$@ \$^
+
+%.o: \$(SOURCES_DIR)/%.c
+	@echo "Compiling \$<"
+	@\$(CC) \$(CFLAGS) -c -o \$@ \$<
+
+clean:
+	@echo "Cleaning objects"
+	@rm -f \$(OBJECTS) \$(OBJECTS:.o=.gcno) \$(OBJECTS:.o=.gcda)
+
+fclean: clean
+	@echo "Cleaning \$(EXEC)"
+	@rm -f \$(EXEC)
+
+re: fclean all
+
+archive:
+	@echo "Creating backup archive: \$(ARCHIVE)"
+	@rm -f \$(ARCHIVE)
+	@\$(ZIP) \$(ZIPFLAGS) \$(ARCHIVE) \$(SOURCES_DIR)/* \$(HEADERS_DIR)/*
+
+revert:
+	@echo "Reverting project from backup archive: \$(ARCHIVE)"
+	@\$(UNZIP) \$(UNZIPFLAGS) \$(ARCHIVE) -C \$(BCK_DIR)/
+
+num:
+	@echo "Current version number: \$(shell date +%Y%m%d%H%M%S)"
+
+delete:
+	@echo "Deleting last backup: \$(ARCHIVE)"
+	@rm -f \$(ARCHIVE)
+
+
+.PHONY: all clean fclean re archive revert num delete
+EOF
+}
+
+
+read_config_file
+check_mandatory_fields
+generate_makefile
+
+exit 0
